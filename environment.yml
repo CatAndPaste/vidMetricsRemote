@@ -1,0 +1,44 @@
+name: vidMetrics
+channels:
+  - pytorch
+  - rapidsai
+  - anaconda
+  - conda-forge
+  - defaults
+dependencies:
+  - cudatoolkit=11.3
+  - cusignal=21.08.00
+  - hdf5=1.10.6
+  - pip=23.2.1
+  - pytables=3.6.1
+  - pytorch
+  - pytorch-mutex
+  - python=3.9
+  - torchaudio
+  - torchvision
+  - pip:
+    - asposestorage==1.0.2
+    - autorank==1.1.1
+    - biosppy==0.7.3
+    - ipython==7.28.0
+    - ipywidgets==7.6.5
+    - lmfit==1.0.3
+    - mediapipe
+    - plotly==5.3.1
+    - PySimpleGUI
+    - scikit_posthocs==0.6.7
+    - scikit-image==0.18.3
+    - tqdm==4.62.3
+    - tensorflow
+    - opencv-python==4.10.0.84
+    - pyVHR==2.0
+    - setuptools==59.8.0
+    - opencv-contrib-python
+    - pandas
+    - scipy
+    - common
+    - numpy==1.22
+    - dlib
+    - imutils
+    - matplotlib
+    - protobuf==3.20.3
