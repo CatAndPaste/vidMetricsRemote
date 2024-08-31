@@ -9,10 +9,14 @@ from utils.heartrate import process_video_with_pyvhr
 from utils.utils import seconds_to_minutes_formatter
 
 # params
-ROI_APPROACH = 'patches'    # 'patches' or ''
-BPM_EST = 'median'          # 'median' or ''
+ROI_APPROACH = 'patches'    # 'patches' or 'holistic'
+BPM_EST = 'median'          # BPM final estimate, if patches choose 'medians' or 'clustering'
 ESTIMATOR_IX = 0            # estimator for BVP (-1 for average value)
-PYVHR_METHOD = 'cpu_OMIT'         # DIFFERENT SUPPORTED METHODS:
+PYVHR_METHOD = 'cpu_OMIT'   # DIFFERENT SUPPORTED METHODS:
+                            # cpu_CHROM, cupy_CHROM, torch_CHROM, cpu_LGI, cpu_POS, cupy_POS, cpu_PBV, cpu_PCA, cpu_GREEN, cpu_OMIT, cpu_ICA, cpu_SSR
+                            # source 1 (README.md): https://github.com/phuselab/pyVHR/tree/master?tab=readme-ov-file#methods
+                            # source 2: https://github.com/phuselab/pyVHR/blob/master/notebooks/pyVHR_demo.ipynb
+                            # OMIT is the latest method as for now
 
 def get_video_info(video_path):
     video = cv2.VideoCapture(video_path)
