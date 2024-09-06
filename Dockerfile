@@ -1,5 +1,11 @@
 FROM nvidia/cuda:11.8.0-cudnn8.6-runtime-ubuntu20.04
 
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN ln -fs /usr/share/zoneinfo/Europe/Moscow /etc/localtime && \
+    apt-get install -y tzdata && \
+    dpkg-reconfigure --frontend noninteractive tzdata
+
 RUN apt-get update && apt-get install -y \
     cmake \
     g++ \
