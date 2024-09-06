@@ -5,11 +5,15 @@ from matplotlib.ticker import FuncFormatter, MaxNLocator
 from pyVHR.analysis.pipeline import Pipeline
 import matplotlib.pyplot as plt
 
-from utils.utils import seconds_to_minutes_formatter
+
+def seconds_to_minutes_formatter(x, pos):
+    minutes = int(x // 60)
+    seconds = int(x % 60)
+    return f'{minutes:02d}:{seconds:02d}'
 
 
-def process_video_with_pyvhr(video_file, roi_approach, bpm_est, method, estimator_index, output_dir):
-    print("Начинаю обработку с помощью pyVHR (BVP+BPM)")
+def process_video_with_pyvhr(video_file, roi_approach, bpm_est, method, estimator_index, output_dir, fn=print):
+    fn("Начинаю обработку с помощью pyVHR (BVP+BPM)")
     wsize = 5  # seconds of video processed (with overlapping) for each estimate
     fps = vhr.extraction.get_fps(video_file)
 
@@ -30,7 +34,7 @@ def process_video_with_pyvhr(video_file, roi_approach, bpm_est, method, estimato
                                              cuda=True,
                                              verb=True)
 
-    print("Сохраняю результаты...")
+    fn("Сохраняю результаты...")
     save_dir = os.path.join(output_dir)
     os.makedirs(save_dir, exist_ok=True)
     bvp_windows_path = os.path.join(save_dir, 'bvp_time_windows')
@@ -111,7 +115,7 @@ def process_video_with_pyvhr(video_file, roi_approach, bpm_est, method, estimato
     plt.grid(True)
     bvp_plot_path = os.path.join(save_dir, 'pyvhr_кровеносное_давление.png')
     plt.savefig(bvp_plot_path)
-    plt.show()
+    #plt.show()
 
     # Plotting BPM
     time_bpm = timesES
@@ -148,7 +152,7 @@ def process_video_with_pyvhr(video_file, roi_approach, bpm_est, method, estimato
     plt.grid(True)
     bpm_plot_path = os.path.join(save_dir, 'pyvhr_пульс.png')
     plt.savefig(bpm_plot_path)
-    plt.show()
+    #plt.show()
 
     # Saving BVP plots for each time window
     for window_idx, bvp_window in enumerate(bvps):
@@ -170,4 +174,4 @@ def process_video_with_pyvhr(video_file, roi_approach, bpm_est, method, estimato
         plt.savefig(window_plot_path)
         plt.close()
 
-    print(f"Обработка завершена! Результаты сохранены в {save_dir}")
+    fn(f"Обработка завершена! Результаты сохранены в {save_dir}")

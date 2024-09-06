@@ -1,6 +1,7 @@
 import cv2
 import mediapipe as mp
 import numpy as np
+import tensorflow as tf
 from matplotlib import pyplot as plt
 from matplotlib.ticker import FuncFormatter
 from scipy.signal import find_peaks, butter, filtfilt
@@ -8,15 +9,25 @@ from scipy.signal import find_peaks, butter, filtfilt
 import os
 
 from gaze_tracking import GazeTracking
-from utils.utils import seconds_to_minutes_formatter
+
+if tf.config.list_physical_devices('GPU'):
+    print("GPU is available, MediaPipe will use GPU for processing.")
+else:
+    print("GPU is not available, MediaPipe will use CPU for processing.")
+
+print("TensorFlow version:", tf.__version__)
+print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+
+def seconds_to_minutes_formatter(x, pos):
+    minutes = int(x // 60)
+    seconds = int(x % 60)
+    return f'{minutes:02d}:{seconds:02d}'
 
 
-def analyze_breathing(video_path, output_dir, time_window=2):
-    print("###\nИнициализация определения частоты дыхания и изменения взгляда\n###")
+def analyze_breathing(video_path, output_dir, time_window=2, fn=print):
+    fn("###\nИнициализация определения частоты дыхания и изменения взгляда\n###")
 
-    # Initialize Gaze Tracker
     gaze = GazeTracking()
-    # Initialize face mesh
     mp_face_mesh = mp.solutions.face_mesh
     face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False,
                                       max_num_faces=1,
@@ -88,7 +99,7 @@ def analyze_breathing(video_path, output_dir, time_window=2):
     cap = cv2.VideoCapture(video_path)
 
     if not cap.isOpened():
-        print(f'Ошибка! Не удалось открыть видеофайл: {video_path}')
+        fn(f'Ошибка! Не удалось открыть видеофайл: {video_path}')
         return
 
     # Data storing
@@ -101,8 +112,9 @@ def analyze_breathing(video_path, output_dir, time_window=2):
     corresponding_points = []
 
     fps = cap.get(cv2.CAP_PROP_FPS)
+    fps_int = int(fps)
     if fps <= 0:
-        print('Ошибка! Полученный из видео FPS равен или меньше 0')
+        fn('Ошибка! Полученный из видео FPS равен или меньше 0')
         return
 
     while True: # main loop
@@ -146,8 +158,8 @@ def analyze_breathing(video_path, output_dir, time_window=2):
                 gaze_y.append(py if py else (gaze_y[-1] if len(gaze_y) and gaze_y[-1] else 0.5))
 
         idf += 1
-        if idf % fps == 0:  # every second
-            print(f"Обработано {idf / fps:.0f} сек.")
+        if idf % fps_int == 0:  # every second
+            fn(f"Обработано {idf / fps:.0f} сек.")
 
     # Freeing resources
     cv2.destroyAllWindows()
@@ -164,7 +176,7 @@ def analyze_breathing(video_path, output_dir, time_window=2):
         plt.grid(True)
         plt.legend()
         plt.savefig(os.path.join(output_dir, '_циклы_дыхания.png'))
-        plt.show()
+        #plt.show()
 
         # Breathing cycles -> rate
         filtered_gsums = butter_lowpass_filter(gsums, cutoff=0.5, fs=fps)
@@ -214,11 +226,11 @@ def analyze_breathing(video_path, output_dir, time_window=2):
             plt.grid(True)
             plt.ylim(bottom=0)
             plt.savefig(os.path.join(output_dir, 'частота_дыхания.png'))
-            plt.show()
+            #plt.show()
         else:
-            print("Not enough peaks detected to estimate breathing rate.")
+            fn("Not enough peaks detected to estimate breathing rate.")
     else:
-        print("Insufficient data for breathing rate analysis.")
+        fn("Insufficient data for breathing rate analysis.")
 
 
     if gaze_x and gaze_y and len(gaze_x) == len(timestamps) and len(gaze_y) == len(timestamps):
@@ -259,10 +271,10 @@ def analyze_breathing(video_path, output_dir, time_window=2):
         plt.savefig(os.path.join(output_dir, 'интенсивность_изменения_взгляда.png'))
         plt.show()
     else:
-        print("Ошибка: информация об изменении взгляда отсутствует или не соответствует меткам времени")
+        fn("Ошибка: информация об изменении взгляда отсутствует или не соответствует меткам времени")
 
-    print("###\nЗакончена оценка частоты дыхания и изменения взгляда\n###")
+    fn("###\nЗакончена оценка частоты дыхания и изменения взгляда\n###")
 
 # Example usage
 if __name__ == "__main__":
-    analyze_breathing("video_.mp4", time_window=2)
+    analyze_breathing("../vid_1.mp4", "test", time_window=2)
