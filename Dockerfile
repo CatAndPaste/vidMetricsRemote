@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.8.6-cudnn8-runtime-ubuntu20.04
+FROM nvidia/cuda:11.8.0-cudnn8.6-runtime-ubuntu20.04
 
 RUN apt-get update && apt-get install -y \
     cmake \
