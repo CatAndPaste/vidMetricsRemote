@@ -2,11 +2,11 @@ FROM nvidia/cuda:11.8.0-cudnn8.6-runtime-ubuntu20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN ln -fs /usr/share/zoneinfo/Europe/Moscow /etc/localtime && \
+RUN apt-get update && \
+    ln -fs /usr/share/zoneinfo/Europe/Moscow /etc/localtime && \
     apt-get install -y tzdata && \
-    dpkg-reconfigure --frontend noninteractive tzdata
-
-RUN apt-get update && apt-get install -y \
+    dpkg-reconfigure --frontend noninteractive tzdata && \
+    apt-get install -y \
     cmake \
     g++ \
     libopenblas-dev \
@@ -20,8 +20,8 @@ RUN apt-get update && apt-get install -y \
     libxrender1 \
     libfontconfig1 \
     libgl1-mesa-glx \
-    wget \
-    && apt-get clean
+    wget && \
+    apt-get clean
 
 WORKDIR /tmp
 RUN wget https://repo.anaconda.com/archive/Anaconda3-2021.05-Linux-x86_64.sh && \
