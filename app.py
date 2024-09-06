@@ -39,7 +39,9 @@ async def main_page():
         log_content = "<br>".join(log_messages)
         video_processing_section = f"""
         <h2>Идёт обработка видео: {current_video}</h2>
-        <pre>{log_content}</pre>
+        <div id="log-section">
+            <pre>{log_content}</pre>
+        </div>
         """
     else:
         video_processing_section = """
@@ -69,16 +71,14 @@ async def main_page():
         <h1>Загрузка результатов</h1>
         {download_section}
         <script>
-            // Скрипт для обновления лога каждые 2 секунды
             setInterval(async function() {{
                 const response = await fetch("/status");
                 const data = await response.json();
                 if (data.processing) {{
-                    document.body.innerHTML = data.html;
+                    document.getElementById("log-section").innerHTML = data.html;
                 }}
             }}, 2000);
 
-            // Отправка файла на сервер
             document.getElementById("upload-form")?.addEventListener("submit", async function(event) {{
                 event.preventDefault();
                 const formData = new FormData();
