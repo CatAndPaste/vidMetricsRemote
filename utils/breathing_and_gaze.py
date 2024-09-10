@@ -18,14 +18,16 @@ else:
 print("TensorFlow version:", tf.__version__)
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
+
 def seconds_to_minutes_formatter(x, pos):
     minutes = int(x // 60)
     seconds = int(x % 60)
     return f'{minutes:02d}:{seconds:02d}'
 
 
-def analyze_breathing(video_path, output_dir, time_window=2, fn=print):
-    fn("###\nИнициализация определения частоты дыхания и изменения взгляда\n###")
+def analyze_breathing(video_path, output_dir, time_window=2, update_progress=None):
+    if update_progress:
+        update_progress(1, "Инициализация...")
 
     gaze = GazeTracking()
     mp_face_mesh = mp.solutions.face_mesh
@@ -99,8 +101,7 @@ def analyze_breathing(video_path, output_dir, time_window=2, fn=print):
     cap = cv2.VideoCapture(video_path)
 
     if not cap.isOpened():
-        fn(f'Ошибка! Не удалось открыть видеофайл: {video_path}')
-        return
+        raise Exception(f'Не удалось открыть видеофайл: {video_path}')
 
     # Data storing
     idf = 0
@@ -114,8 +115,9 @@ def analyze_breathing(video_path, output_dir, time_window=2, fn=print):
     fps = cap.get(cv2.CAP_PROP_FPS)
     fps_int = int(fps)
     if fps <= 0:
-        fn('Ошибка! Полученный из видео FPS равен или меньше 0')
-        return
+        raise Exception('Полученный из видео FPS равен или меньше 0')
+
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     while True: # main loop
         ret, frame = cap.read()
@@ -129,6 +131,8 @@ def analyze_breathing(video_path, output_dir, time_window=2, fn=print):
                 continue
 
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # mediapipe requires RGB image, OpenCV works with BGR
+        frame.flags.writeable = False
+        rgb_frame.flags.writeable = False   # small tweak to increase performance
         result = face_mesh.process(rgb_frame)
 
         if result.multi_face_landmarks:
@@ -144,9 +148,6 @@ def analyze_breathing(video_path, output_dir, time_window=2, fn=print):
 
             if bbox != [0, 0, 0, 0]:
                 roi = frame[bbox[1]:bbox[3], bbox[0]:bbox[2]]
-                # highlighting roi on image
-                cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (255, 0, 0), 2)
-
                 green = get_color_average(roi, 1)  # 2nd channel for Green color
                 gsums.append(green)
                 timestamps.append(idf / fps)  # time in seconds
@@ -158,13 +159,17 @@ def analyze_breathing(video_path, output_dir, time_window=2, fn=print):
                 gaze_y.append(py if py else (gaze_y[-1] if len(gaze_y) and gaze_y[-1] else 0.5))
 
         idf += 1
-        if idf % fps_int == 0:  # every second
-            fn(f"Обработано {idf / fps:.0f} сек.")
+        if idf % fps_int == 0:
+            if update_progress:
+                progress_percentage = (idf / total_frames) * 96 + 1
+                update_progress(progress_percentage, "Анализ видео...")
 
     # Freeing resources
     cv2.destroyAllWindows()
     cap.release()
 
+    if update_progress:
+        update_progress(98, "Сохраняю результаты...")
 
     if gsums and timestamps and len(gsums) == len(timestamps):
         # Breathing cycles (green_channel_amplitude)
@@ -228,9 +233,9 @@ def analyze_breathing(video_path, output_dir, time_window=2, fn=print):
             plt.savefig(os.path.join(output_dir, 'частота_дыхания.png'))
             #plt.show()
         else:
-            fn("Not enough peaks detected to estimate breathing rate.")
+            print("Not enough peaks detected to estimate breathing rate.")
     else:
-        fn("Insufficient data for breathing rate analysis.")
+        print("Insufficient data for breathing rate analysis.")
 
 
     if gaze_x and gaze_y and len(gaze_x) == len(timestamps) and len(gaze_y) == len(timestamps):
@@ -269,12 +274,11 @@ def analyze_breathing(video_path, output_dir, time_window=2, fn=print):
         plt.title("Интенсивность изменения взгляда (скользящее среднее по 1 сек.)")
         plt.grid(True)
         plt.savefig(os.path.join(output_dir, 'интенсивность_изменения_взгляда.png'))
-        plt.show()
+        #plt.show()
     else:
-        fn("Ошибка: информация об изменении взгляда отсутствует или не соответствует меткам времени")
+        print("Ошибка: информация об изменении взгляда отсутствует или не соответствует меткам времени")
 
-    fn("###\nЗакончена оценка частоты дыхания и изменения взгляда\n###")
+    if update_progress:
+        update_progress(100, "Завершено!")
 
-# Example usage
-if __name__ == "__main__":
-    analyze_breathing("../vid_1.mp4", "test", time_window=2)
+    print("###\nЗакончена оценка частоты дыхания и изменения взгляда\n###")

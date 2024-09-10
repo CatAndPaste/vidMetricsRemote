@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Metrics</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1, h2, h3 {
+            color: #333;
+        }
+
+        button {
+            padding: 5px 10px;
+            border: none;
+            background-color: #f44336;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            height: 40px; /* Высота кнопок */
+            display: inline-block;
+        }
+
+        button:hover {
+            background-color: #d32f2f;
+        }
+
+        progress {
+            width: 100%;
+            height: 20px;
+        }
+
+        .progress-container {
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+
+        .progress-status {
+            margin-top: 5px;
+        }
+
+        .queue-item, .archive-item, .error-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .archive-item a {
+            margin-left: auto;
+        }
+
+        .archive-item button {
+            margin-left: 10px;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .video-info {
+            margin-top: 10px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        button, progress, .progress-container, .queue-item, .archive-item {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .container {
+            margin-bottom: 20px;
+        }
+
+        ul {
+            padding-left: 0;
+            list-style-type: none;
+            width: 100%;
+        }
+
+        hr {
+            border: 0;
+            height: 1px;
+            background-color: #ddd;
+        }
+    </style>
+</head>
+<body>
+<h1>Анализ видео</h1>
+
+<!-- Загрузка видео -->
+<div class="container">
+    <h2>Загрузите видео для анализа</h2>
+    <form id="upload-form" enctype="multipart/form-data" method="post">
+        <input id="file-input" name="video" type="file" accept="video/mp4" multiple required>
+        <progress id="upload-progress" value="0" max="100" style="display: none;"></progress>
+        <p id="upload-status"></p>
+        <input type="submit" value="Загрузить видео">
+    </form>
+    <p>(формат: .mp4, допускается загрузка нескольких видео)</p>
+</div>
+
+<hr>
+
+<!-- Прогресс выполнения анализа -->
+<div class="container">
+    <h2>Прогресс обработки</h2>
+    <div class="progress-container">
+        <h3>Анализ дыхания и взгляда</h3>
+        <progress id="breathing-progress" value="0" max="100"></progress>
+        <p id="breathing-status" class="progress-status">Ожидание...</p>
+        <p id="breathing-error" class="error hidden"></p>
+    </div>
+
+    <div class="progress-container">
+        <h3>Анализ сердцебиения</h3>
+        <progress id="heartrate-progress" value="0" max="100"></progress>
+        <p id="heartrate-status" class="progress-status">Ожидание...</p>
+        <p id="heartrate-error" class="error hidden"></p>
+    </div>
+</div>
+
+<!-- Информация о видео -->
+<div id="video-info" class="video-info hidden">
+    <h3>Текущая информация о видео:</h3>
+    <p><b>Имя видео:</b> <span id="video-name"></span></p>
+    <p><b>Длительность:</b> <span id="video-duration"></span> секунд</p>
+    <p><b>Разрешение:</b> <span id="video-resolution"></span></p>
+    <p><b>FPS:</b> <span id="video-fps"></span></p>
+</div>
+
+<hr>
+
+<!-- Очередь -->
+<div class="container">
+    <h2>Очередь обработки</h2>
+    <ul id="queue-list"></ul>
+</div>
+
+<hr>
+
+<!-- Загрузка результатов -->
+<div class="container">
+    <h2>Загрузка результатов</h2>
+    <ul id="archive-list"></ul>
+</div>
+
+<hr>
+
+<!-- Блок ошибок -->
+<div id="error-block" class="container hidden">
+    <h2>Ошибки</h2>
+    <ul id="error-list"></ul>
+</div>
+
+<hr>
+
+<!-- Скрипты -->
+<script>
+async function updateErrors() {
+    const response = await fetch("/get_errors");
+    const data = await response.json();
+    const errorBlock = document.getElementById("error-block");
+    const errorList = document.getElementById("error-list");
+    errorList.innerHTML = ""; // Очищаем список ошибок
+
+    if (data.errors.length > 0) {
+        errorBlock.classList.remove("hidden"); // Показываем блок, если есть ошибки
+
+        data.errors.forEach(error => {
+            const listItem = document.createElement("li");
+            listItem.className = "error-item";
+            listItem.innerHTML = `
+                Видео: ${error.video_name} - Загружено: ${error.uploaded_at} <br>
+                Дыхание и взгляд: ${error.breathing_and_gaze.status} - ${error.breathing_and_gaze.error || 'Нет ошибок'} <br>
+                Сердцебиение: ${error.heartrate.status} - ${error.heartrate.error || 'Нет ошибок'}
+            `;
+            errorList.appendChild(listItem);
+        });
+    } else {
+        errorBlock.classList.add("hidden");
+    }
+}
+
+async function updateQueue() {
+    const response = await fetch("/get_queue");
+    const data = await response.json();
+    const queueList = document.getElementById("queue-list");
+    queueList.innerHTML = "";
+
+    if (data.current_video.current_video) {
+        const currentVideoItem = document.createElement("li");
+        currentVideoItem.innerHTML = `<b>Обрабатывается: ${data.current_video.current_video}</b>`;
+        queueList.appendChild(currentVideoItem);
+    }
+
+    data.queue.forEach(video => {
+        const listItem = document.createElement("li");
+        listItem.className = "queue-item";
+        listItem.innerHTML = `
+            ${video.name} - ${video.uploaded_at}
+            <button onclick="removeFromQueue('${video.name}')">Удалить</button>
+        `;
+        queueList.appendChild(listItem);
+    });
+}
+
+async function updateArchives() {
+    const response = await fetch("/get_archives");
+    const data = await response.json();
+    const archiveList = document.getElementById("archive-list");
+    archiveList.innerHTML = "";
+
+    data.archives.forEach(archive => {
+        const listItem = document.createElement("li");
+        listItem.className = "archive-item";
+        listItem.innerHTML = `
+            ${archive.name} - ${archive.timestamp}
+            <a href="/download/${archive.name}">Скачать .ZIP</a>
+            <button onclick="deleteArchive('${archive.name}')">Удалить</button>
+        `;
+        archiveList.appendChild(listItem);
+    });
+}
+
+async function deleteArchive(archiveName) {
+    const response = await fetch(`/delete_archive/${archiveName}`, {
+        method: "DELETE"
+    });
+
+    if (response.ok) {
+        updateArchives();
+    } else {
+        alert("Ошибка при удалении архива.");
+    }
+}
+
+async function removeFromQueue(filename) {
+    const response = await fetch(`/remove_from_queue/${filename}`, {
+        method: "POST"
+    });
+
+    if (response.ok) {
+        updateQueue();
+    } else {
+        alert("Ошибка при удалении видео.");
+    }
+}
+
+async function updateProgress() {
+    const response = await fetch("/progress");
+    const data = await response.json();
+
+    document.getElementById("breathing-progress").value = data.breathing_and_gaze.progress;
+    document.getElementById("breathing-status").textContent = data.breathing_and_gaze.status;
+    document.getElementById("breathing-error").style.display = data.breathing_and_gaze.error ? "block" : "none";
+    document.getElementById("breathing-error").textContent = data.breathing_and_gaze.error || "";
+
+    document.getElementById("heartrate-progress").value = data.heartrate.progress;
+    document.getElementById("heartrate-status").textContent = data.heartrate.status;
+    document.getElementById("heartrate-error").style.display = data.heartrate.error ? "block" : "none";
+    document.getElementById("heartrate-error").textContent = data.heartrate.error || "";
+
+    const videoInfo = document.getElementById("video-info");
+    if (data.video_info) {
+        videoInfo.style.display = "block";
+        document.getElementById("video-name").textContent = data.video_info.name;
+        document.getElementById("video-duration").textContent = data.video_info.duration;
+        document.getElementById("video-resolution").textContent = data.video_info.resolution;
+        document.getElementById("video-fps").textContent = data.video_info.fps;
+    } else {
+        videoInfo.style.display = "none";
+    }
+}
+
+document.getElementById("upload-form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    const formData = new FormData();
+    const fileInput = document.getElementById("file-input");
+    const uploadProgress = document.getElementById("upload-progress");
+    const uploadStatus = document.getElementById("upload-status");
+
+    if (fileInput.files.length > 0) {
+        uploadProgress.style.display = 'block';
+        for (let i = 0; i < fileInput.files.length; i++) {
+            formData.append("files", fileInput.files[i]);
+        }
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/upload_video", true);
+
+        xhr.upload.onprogress = function (event) {
+            if (event.lengthComputable) {
+                const percentComplete = (event.loaded / event.total) * 100;
+                uploadProgress.value = percentComplete;
+                uploadStatus.textContent = `Загрузка: ${Math.round(percentComplete)}%`;
+            }
+        };
+
+        xhr.onload = function () {
+            if (xhr.status == 200) {
+                uploadProgress.style.display = 'none';
+                uploadStatus.textContent = "Видео успешно загружены.";
+                updateQueue(); // Обновляем очередь
+            } else {
+                uploadStatus.textContent = "Ошибка при загрузке видео.";
+            }
+        };
+
+        xhr.send(formData);
+    }
+});
+
+window.onload = function() {
+    updateProgress();
+    updateQueue();
+    updateArchives();
+    updateErrors();
+};
+
+setInterval(updateProgress, 1000);
+setInterval(updateQueue, 2000);
+setInterval(updateArchives, 2000);
+</script>
+</body>
+</html>

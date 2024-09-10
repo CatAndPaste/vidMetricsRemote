@@ -12,12 +12,14 @@ def seconds_to_minutes_formatter(x, pos):
     return f'{minutes:02d}:{seconds:02d}'
 
 
-def process_video_with_pyvhr(video_file, roi_approach, bpm_est, method, estimator_index, output_dir, fn=print):
-    fn("Начинаю обработку с помощью pyVHR (BVP+BPM)")
+def process_video_with_pyvhr(video_file, roi_approach, bpm_est, method, estimator_index, output_dir,
+                             update_progress=None):
     wsize = 5  # seconds of video processed (with overlapping) for each estimate
     fps = vhr.extraction.get_fps(video_file)
 
     pipe = Pipeline()
+    if update_progress:
+        update_progress(5, "Обработка с помощью pyVHR...")
 
     # starting pipeline
     bvps, timesES, bpmES = pipe.run_on_video(video_file,
@@ -34,7 +36,8 @@ def process_video_with_pyvhr(video_file, roi_approach, bpm_est, method, estimato
                                              cuda=True,
                                              verb=True)
 
-    fn("Сохраняю результаты...")
+    if update_progress:
+        update_progress(60, "Обрабатываю результаты pyVHR...")
     save_dir = os.path.join(output_dir)
     os.makedirs(save_dir, exist_ok=True)
     bvp_windows_path = os.path.join(save_dir, 'bvp_time_windows')
@@ -154,6 +157,9 @@ def process_video_with_pyvhr(video_file, roi_approach, bpm_est, method, estimato
     plt.savefig(bpm_plot_path)
     #plt.show()
 
+    if update_progress:
+        update_progress(75, f"Сохраняю результаты pyVHR ({len(timesES) + 2})...")
+
     # Saving BVP plots for each time window
     for window_idx, bvp_window in enumerate(bvps):
         time_start = timesES[window_idx] - wsize / 2
@@ -174,4 +180,6 @@ def process_video_with_pyvhr(video_file, roi_approach, bpm_est, method, estimato
         plt.savefig(window_plot_path)
         plt.close()
 
-    fn(f"Обработка завершена! Результаты сохранены в {save_dir}")
+    if update_progress:
+        update_progress(100, f"Завершено!")
+    print(f"Обработка завершена! Результаты сохранены в {save_dir}")
